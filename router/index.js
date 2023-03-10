@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { Musician } = require('./Musician');
+const { Musician } = require('../Musician');
+const { check, validationResult } = require('express-validator');
 
 //TODO
-router.get('/musicians', async (req, res) => {
+router.get('/', async (req, res) => {
 	try {
 		await Musician.findAll()
 			.then((musicians) => {
@@ -17,7 +18,7 @@ router.get('/musicians', async (req, res) => {
 	}
 });
 
-router.get('/musicians/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
 	try {
 		await Musician.findByPk(req.params.id)
 			.then((musician) => {
@@ -31,28 +32,38 @@ router.get('/musicians/:id', async (req, res) => {
 	}
 });
 
-router.post('/musicians', async (req, res) => {
-	try {
-		let { name, instrument } = req.body;
-		if (!name || !instrument) {
-			res.status(400).json({ message: 'All fields are required' });
-		} else {
-			await Musician.create({ name, instrument })
-				.then((musician) => {
-					res.status(201).json(musician);
-				})
-				.catch((err) => {
-					res.status(500).json({
-						message: 'Database Internal Error',
+router.post(
+	'/',
+	[
+		check(['name', 'instrument']).not().isEmpty().trim(),
+		check('name')
+			.isLength({ min: 2, max: 20 })
+			.withMessage('name must be at least 2 - 10 characters long'),
+	],
+	async (req, res) => {
+		try {
+			let errors = validationResult(req);
+			if (!errors.isEmpty()) {
+				res.status(400).json({ error: errors.array() });
+			} else {
+				let { name, instrument } = req.body;
+				await Musician.create({ name, instrument })
+					.then((musician) => {
+						res.status(201).json(musician);
+					})
+					.catch((err) => {
+						res.status(500).json({
+							message: 'Database Internal Error',
+						});
 					});
-				});
+			}
+		} catch (err) {
+			res.status(500).json({ message: 'Server Internal Error' });
 		}
-	} catch (err) {
-		res.status(500).json({ message: 'Server Internal Error' });
 	}
-});
+);
 
-router.put('/musicians/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
 	try {
 		let { id } = req.params;
 		let { name, instrument } = req.body;
@@ -76,7 +87,7 @@ router.put('/musicians/:id', async (req, res) => {
 	}
 });
 
-router.delete('/musicians/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
 	try {
 		let { id } = req.params;
 		await Musician.findByPk(id)
